@@ -1,4 +1,4 @@
-;(function (window, document) {
+(function (window, document) {
     'use strict';
 
     var addEvent = (function () {
@@ -6,26 +6,57 @@
             return function addStandardEventListener(el, eventName, fn) {
                 return el.addEventListener(eventName, fn, false);
             };
-        }
-        else {
+        } else {
             return function addIEEventListener(el, eventName, fn) {
                 return el.attachEvent('on' + eventName, fn);
             };
         }
     })();
 
-    var defaultWidths = [96, 130, 165, 200, 235, 270, 304, 340, 375, 410, 445, 485, 520, 555, 590, 625, 660, 695, 736];
-
-    var getKeys = typeof Object.keys === 'function' ? Object.keys : function (object) {
-        var keys = [],
-            key;
-
-        for (key in object) {
-            keys.push(key);
+    var addCustomEvent = function () {
+        if (typeof window.CustomEvent === 'function') {
+            return false;
         }
 
-        return keys;
+        function CustomEvent(event, params) {
+            params = params || {
+                bubbles: false,
+                cancelable: false,
+                detail: undefined
+            };
+            var evt = document.createEvent('CustomEvent');
+            evt.initCustomEvent(
+                event,
+                params.bubbles,
+                params.cancelable,
+                params.detail
+            );
+            return evt;
+        }
+
+        CustomEvent.prototype = window.Event.prototype;
+
+        window.CustomEvent = CustomEvent;
     };
+
+    var defaultWidths = [
+        96, 130, 165, 200, 235, 270, 304, 340, 375, 410, 445, 485, 520, 555,
+        590, 625, 660, 695, 736
+    ];
+
+    var getKeys =
+        typeof Object.keys === 'function'
+            ? Object.keys
+            : function (object) {
+                  var keys = [],
+                      key;
+
+                  for (key in object) {
+                      keys.push(key);
+                  }
+
+                  return keys;
+              };
 
     var applyEach = function (collection, callbackEach) {
         var i = 0,
@@ -39,14 +70,19 @@
         return new_collection;
     };
 
-    var returnFn = function (value) { return value; };
+    var returnFn = function (value) {
+        return value;
+    };
     var noop = function () {};
-    var trueFn = function () { return true; };
+    var trueFn = function () {
+        return true;
+    };
 
     var debounce = function (fn, wait) {
         var timeout;
         return function () {
-            var context = this, args = arguments;
+            var context = this,
+                args = arguments;
             var later = function () {
                 timeout = null;
                 fn.apply(context, args);
@@ -55,7 +91,6 @@
             timeout = setTimeout(later, wait);
         };
     };
-
 
     /*
         Construct a new Imager instance, passing an optional configuration object.
@@ -86,13 +121,11 @@
         @return {object} instance of Imager
      */
     var Imager = function (elements, opts) {
-        var self = this;
-        var doc  = document;
+        var doc = document;
 
         opts = opts || {};
 
         if (elements !== undefined) {
-
             // selector string (not elements)
             if (typeof elements === 'string') {
                 opts.selector = elements;
@@ -106,22 +139,36 @@
             }
         }
 
-        this.viewportHeight   = doc.documentElement.clientHeight;
-        this.selector         = !elements ? (opts.selector || '.delayed-image-load') : null;
-        this.className        = opts.className || 'image-replace';
-        this.gif              = doc.createElement('img');
-        this.gif.src          = 'data:image/gif;base64,R0lGODlhEAAJAIAAAP///wAAACH5BAEAAAAALAAAAAAQAAkAAAIKhI+py+0Po5yUFQA7';
-        this.gif.className    = this.className;
-        this.gif.alt          = '';
-        this.lazyloadOffset   = opts.lazyloadOffset || 0;
-        this.scrollDelay      = opts.scrollDelay || 250;
-        this.onResize         = opts.hasOwnProperty('onResize') ? opts.onResize : true;
-        this.lazyload         = opts.hasOwnProperty('lazyload') ? opts.lazyload : false;
-        this.scrolled         = false;
+        this.viewportHeight = doc.documentElement.clientHeight;
+        this.selector = !elements
+            ? opts.selector || '.delayed-image-load'
+            : null;
+        this.className = opts.className || 'image-replace';
+        this.fileTypeReqFormat = opts.fileTypeReqFormat || '.$';
+        this.fileTypeReqFormatString = [];
+        this.fileTypeReqFormatString.webp = this.fileTypeReqFormat.replace(
+            '$',
+            'webp'
+        );
+        this.fileTypeReqFormatString.jpg = this.fileTypeReqFormat.replace(
+            '$',
+            'jpg'
+        );
+        this.gif = doc.createElement('img');
+        this.gif.src =
+            'data:image/gif;base64,R0lGODlhEAAJAIAAAP///wAAACH5BAEAAAAALAAAAAAQAAkAAAIKhI+py+0Po5yUFQA7';
+        this.gif.className = this.className;
+        this.gif.alt = '';
+        this.lazyloadOffset = opts.lazyloadOffset || 0;
+        this.scrollDelay = opts.scrollDelay || 250;
+        this.onResize = opts.hasOwnProperty('onResize') ? opts.onResize : true;
+        this.lazyload = opts.hasOwnProperty('lazyload') ? opts.lazyload : false;
+        this.webpBrowserSupport = true;
+        this.scrolled = false;
         this.availablePixelRatios = opts.availablePixelRatios || [1, 2];
-        this.availableWidths  = opts.availableWidths || defaultWidths;
+        this.availableWidths = opts.availableWidths || defaultWidths;
         this.onImagesReplaced = opts.onImagesReplaced || noop;
-        this.widthsMap        = {};
+        this.widthsMap = {};
         this.refreshPixelRatio();
         this.widthInterpolator = opts.widthInterpolator || returnFn;
 
@@ -130,34 +177,37 @@
         this.gif.removeAttribute('width');
 
         if (typeof this.availableWidths !== 'function') {
-          if (typeof this.availableWidths.length === 'number') {
-            this.widthsMap = Imager.createWidthsMap(this.availableWidths, this.widthInterpolator, this.devicePixelRatio);
-          }
-          else {
-            this.widthsMap = this.availableWidths;
-            this.availableWidths = getKeys(this.availableWidths);
-          }
+            if (typeof this.availableWidths.length === 'number') {
+                this.widthsMap = Imager.createWidthsMap(
+                    this.availableWidths,
+                    this.widthInterpolator,
+                    this.devicePixelRatio
+                );
+            } else {
+                this.widthsMap = this.availableWidths;
+                this.availableWidths = getKeys(this.availableWidths);
+            }
 
-          this.availableWidths = this.availableWidths.sort(function (a, b) {
-            return a - b;
-          });
+            this.availableWidths = this.availableWidths.sort(function (a, b) {
+                return a - b;
+            });
         }
 
         this.divs = [];
         this.add(elements || this.selector);
+
         this.ready(opts.onReady);
 
-        setTimeout(function () {
-            self.init();
-        }, 0);
+        this.registerFeatureDetectionRunEvent();
+        this.featureDetectionTest();
     };
 
     Imager.prototype.add = function (elementsOrSelector) {
-
         elementsOrSelector = elementsOrSelector || this.selector;
-        var elements = typeof elementsOrSelector === 'string' ?
-            document.querySelectorAll(elementsOrSelector) : // Selector
-            elementsOrSelector; // Elements (NodeList or array of Nodes)
+        var elements =
+            typeof elementsOrSelector === 'string'
+                ? document.querySelectorAll(elementsOrSelector) // Selector
+                : elementsOrSelector; // Elements (NodeList or array of Nodes)
 
         if (elements && elements.length) {
             var additional = applyEach(elements, returnFn);
@@ -207,8 +257,7 @@
             filterFn = function (element) {
                 return self.isPlaceholder(element) === false;
             };
-        }
-        else {
+        } else {
             this.checkImagesNeedReplacing(this.divs);
         }
 
@@ -232,7 +281,11 @@
 
     Imager.prototype.createGif = function (element) {
         // if the element is already a responsive image then we don't replace it again
-        if (element.className.match(new RegExp('(^| )' + this.className + '( |$)'))) {
+        if (
+            element.className.match(
+                new RegExp('(^| )' + this.className + '( |$)')
+            )
+        ) {
             return element;
         }
 
@@ -241,13 +294,17 @@
         var gif = this.gif.cloneNode(false);
 
         if (elementWidth) {
-          gif.width = elementWidth;
-          gif.setAttribute('data-width', elementWidth);
+            gif.width = elementWidth;
+            gif.setAttribute('data-width', elementWidth);
         }
 
-        gif.className = (elementClassName ? elementClassName + ' ' : '') + this.className;
+        gif.className =
+            (elementClassName ? elementClassName + ' ' : '') + this.className;
         gif.setAttribute('data-src', element.getAttribute('data-src'));
-        gif.setAttribute('alt', element.getAttribute('data-alt') || element.alt || this.gif.alt);
+        gif.setAttribute(
+            'alt',
+            element.getAttribute('data-alt') || element.alt || this.gif.alt
+        );
 
         element.parentNode.replaceChild(gif, element);
 
@@ -292,11 +349,10 @@
         if (element.offsetParent) {
             do {
                 elementOffsetTop += element.offsetTop;
-            }
-            while (element = element.offsetParent);
+            } while ((element = element.offsetParent));
         }
 
-        return elementOffsetTop < (this.viewportHeight + offset);
+        return elementOffsetTop < this.viewportHeight + offset;
     };
 
     Imager.prototype.checkImagesNeedReplacing = function (images, filterFn) {
@@ -324,11 +380,15 @@
      * @param {HTMLImageElement} image
      */
     Imager.prototype.replaceImagesBasedOnScreenDimensions = function (image) {
+        var self = this;
         var computedWidth, naturalWidth;
+        var imgSrc = image.getAttribute('data-src');
 
-	naturalWidth = Imager.getNaturalWidth(image);
-        computedWidth = typeof this.availableWidths === 'function' ? this.availableWidths(image)
-                                                                   : this.determineAppropriateResolution(image);
+        naturalWidth = Imager.getNaturalWidth(image);
+        computedWidth =
+            typeof this.availableWidths === 'function'
+                ? this.availableWidths(image)
+                : this.determineAppropriateResolution(image);
 
         image.width = computedWidth;
 
@@ -336,13 +396,60 @@
             return;
         }
 
-        image.src = this.changeImageSrcToUseNewImageDimensions(image.getAttribute('data-src'), computedWidth);
+        if (!self.webpBrowserSupport) {
+            imgSrc = imgSrc.replace(
+                self.fileTypeReqFormatString.webp,
+                self.fileTypeReqFormatString.jpg
+            );
+        }
+
+        image.src = this.changeImageSrcToUseNewImageDimensions(
+            imgSrc,
+            computedWidth
+        );
+
+        image.removeAttribute('width');
+        image.removeAttribute('height');
+    };
+
+    Imager.prototype.replaceImagesBasedOnMissingWebpSupport = function (image) {
+        var self = this;
+        var computedWidth, naturalWidth;
+        var imgSrc = image.getAttribute('data-src');
+
+        naturalWidth = Imager.getNaturalWidth(image);
+        computedWidth =
+            typeof this.availableWidths === 'function'
+                ? this.availableWidths(image)
+                : this.determineAppropriateResolution(image);
+
+        image.width = computedWidth;
+
+        if (!this.isPlaceholder(image) && computedWidth <= naturalWidth) {
+            return;
+        }
+
+        if (!self.webpBrowserSupport) {
+            imgSrc = imgSrc.replace(
+                self.fileTypeReqFormatString.webp,
+                self.fileTypeReqFormatString.jpg
+            );
+        }
+
+        image.src = this.changeImageSrcToUseNewImageDimensions(
+            imgSrc,
+            computedWidth
+        );
+
         image.removeAttribute('width');
         image.removeAttribute('height');
     };
 
     Imager.prototype.determineAppropriateResolution = function (image) {
-      return Imager.getClosestValue(image.getAttribute('data-width') || image.parentNode.clientWidth, this.availableWidths);
+        return Imager.getClosestValue(
+            image.getAttribute('data-width') || image.parentNode.clientWidth,
+            this.availableWidths
+        );
     };
 
     /**
@@ -355,22 +462,38 @@
      * @since 1.0.1
      */
     Imager.prototype.refreshPixelRatio = function refreshPixelRatio() {
-        this.devicePixelRatio = Imager.getClosestValue(Imager.getPixelRatio(), this.availablePixelRatios);
+        this.devicePixelRatio = Imager.getClosestValue(
+            Imager.getPixelRatio(),
+            this.availablePixelRatios
+        );
     };
 
-    Imager.prototype.changeImageSrcToUseNewImageDimensions = function (src, selectedWidth) {
+    Imager.prototype.changeImageSrcToUseNewImageDimensions = function (
+        src,
+        selectedWidth
+    ) {
         return src
-            .replace(/{width}/g, Imager.transforms.width(selectedWidth, this.widthsMap))
-            .replace(/{pixel_ratio}/g, Imager.transforms.pixelRatio(this.devicePixelRatio));
+            .replace(
+                /{width}/g,
+                Imager.transforms.width(selectedWidth, this.widthsMap)
+            )
+            .replace(
+                /{pixel_ratio}/g,
+                Imager.transforms.pixelRatio(this.devicePixelRatio)
+            );
     };
 
     Imager.getPixelRatio = function getPixelRatio(context) {
         return (context || window)['devicePixelRatio'] || 1;
     };
 
-    Imager.createWidthsMap = function createWidthsMap (widths, interpolator, pixelRatio) {
+    Imager.createWidthsMap = function createWidthsMap(
+        widths,
+        interpolator,
+        pixelRatio
+    ) {
         var map = {},
-            i   = widths.length;
+            i = widths.length;
 
         while (i--) {
             map[widths[i]] = interpolator(widths[i], pixelRatio);
@@ -407,7 +530,7 @@
      * @returns {Number}
      */
     Imager.getClosestValue = function getClosestValue(baseValue, candidates) {
-        var i             = candidates.length,
+        var i = candidates.length,
             selectedWidth = candidates[i - 1];
 
         baseValue = parseFloat(baseValue);
@@ -421,12 +544,56 @@
         return selectedWidth;
     };
 
+    /**
+     * Checks whether the browser supports the display of webp
+     */
+    Imager.prototype.featureDetectionTest = function () {
+        var self = this;
+        var image = new Image();
+
+        function addResult(event) {
+            self.webpBrowserSupport =
+                event && event.type === 'load' ? image.width === 1 : false;
+            document.dispatchEvent(self.featureDetectionRunEvent);
+            document.removeEventListener(
+                'featureDetectionRun',
+                self.initFn,
+                false
+            );
+        }
+
+        image.onerror = addResult;
+        image.onload = addResult;
+
+        image.src =
+            'data:image/webp;base64,UklGRiQAAABXRUJQVlA4IBgAAAAwAQCdASoBAAEAAwA0JaQAA3AA/vuUAAA=';
+    };
+
     Imager.prototype.registerResizeEvent = function (filterFn) {
         var self = this;
 
-        addEvent(window, 'resize', debounce(function () {
-            self.checkImagesNeedReplacing(self.divs, filterFn);
-        }, 100));
+        addEvent(
+            window,
+            'resize',
+            debounce(function () {
+                self.checkImagesNeedReplacing(self.divs, filterFn);
+            }, 100)
+        );
+    };
+
+    Imager.prototype.registerFeatureDetectionRunEvent = function () {
+        var self = this;
+
+        addCustomEvent();
+        self.featureDetectionRunEvent = new CustomEvent('featureDetectionRun');
+
+        self.initFn = function () {
+            setTimeout(function () {
+                self.init();
+            }, 0);
+        };
+
+        addEvent(document, 'featureDetectionRun', self.initFn());
     };
 
     Imager.prototype.registerScrollEvent = function () {
@@ -450,10 +617,13 @@
 
     Imager.getPageOffsetGenerator = function getPageVerticalOffset(testCase) {
         if (testCase) {
-            return function () { return window.pageYOffset; };
-        }
-        else {
-            return function () { return document.documentElement.scrollTop; };
+            return function () {
+                return window.pageYOffset;
+            };
+        } else {
+            return function () {
+                return document.documentElement.scrollTop;
+            };
         }
     };
 
@@ -465,7 +635,7 @@
      * @return {Number} Image width in pixels
      */
     Imager.getNaturalWidth = (function () {
-        if ('naturalWidth' in (new Image())) {
+        if ('naturalWidth' in new Image()) {
             return function (image) {
                 return image.naturalWidth;
             };
@@ -479,7 +649,9 @@
     })();
 
     // This form is used because it seems impossible to stub `window.pageYOffset`
-    Imager.getPageOffset = Imager.getPageOffsetGenerator(Object.prototype.hasOwnProperty.call(window, 'pageYOffset'));
+    Imager.getPageOffset = Imager.getPageOffsetGenerator(
+        Object.prototype.hasOwnProperty.call(window, 'pageYOffset')
+    );
 
     // Exporting for testing and convenience purpose
     Imager.applyEach = applyEach;
@@ -492,11 +664,12 @@
         module.exports = exports = Imager;
     } else if (typeof define === 'function' && define.amd) {
         // AMD support
-        define(function () { return Imager; });
+        define(function () {
+            return Imager;
+        });
     } else if (typeof window === 'object') {
         // If no AMD and we are in the browser, attach to window
         window.Imager = Imager;
     }
     /* jshint ignore:end */
-
-}(window, document));
+})(window, document);

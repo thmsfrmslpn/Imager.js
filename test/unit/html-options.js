@@ -53,7 +53,9 @@ describe('Imager.js HTML data-* API', function () {
 
         it('should interpolate {width} with an alternate string value', function (done) {
             fixtures = loadFixtures('data-src-interpolate');
-            var imgr = new Imager({availableWidths: {1024: '', 320: 'n_d', 640: 'z_d'}});
+            var imgr = new Imager({
+                availableWidths: {1024: '', 320: 'n_d', 640: 'z_d'}
+            });
 
             imgr.ready(function () {
                 var src = applyEach(imgr.divs, function (el) {
@@ -121,7 +123,7 @@ describe('Imager.js HTML data-* API', function () {
             });
         });
 
-        it('should provide both width and pixelRatio to the widthInterpolator function', function(){
+        it('should provide both width and pixelRatio to the widthInterpolator function', function () {
             var interpolatorStub = sandbox.stub();
             var pixelRatioStub = sandbox.stub(Imager, 'getPixelRatio');
             pixelRatioStub.returns(2);
@@ -160,15 +162,23 @@ describe('Imager.js HTML data-* API', function () {
 
             dataSrc = 'http://example.com/img{pixel_ratio}/A-{width}.jpg';
             sandbox.stub(imgr, 'devicePixelRatio', 1);
-            expect(imgr.changeImageSrcToUseNewImageDimensions(dataSrc, 320)).to.equal('http://example.com/img/A-320.jpg');
+            expect(
+                imgr.changeImageSrcToUseNewImageDimensions(dataSrc, 320)
+            ).to.equal('http://example.com/img/A-320.jpg');
             sandbox.stub(imgr, 'devicePixelRatio', 2);
-            expect(imgr.changeImageSrcToUseNewImageDimensions(dataSrc, 320)).to.equal('http://example.com/img-2x/A-320.jpg');
+            expect(
+                imgr.changeImageSrcToUseNewImageDimensions(dataSrc, 320)
+            ).to.equal('http://example.com/img-2x/A-320.jpg');
 
             dataSrc = 'http://example.com/img{pixel_ratio}/A.jpg';
             sandbox.stub(imgr, 'devicePixelRatio', 1);
-            expect(imgr.changeImageSrcToUseNewImageDimensions(dataSrc, 320)).to.equal('http://example.com/img/A.jpg');
+            expect(
+                imgr.changeImageSrcToUseNewImageDimensions(dataSrc, 320)
+            ).to.equal('http://example.com/img/A.jpg');
             sandbox.stub(imgr, 'devicePixelRatio', 2);
-            expect(imgr.changeImageSrcToUseNewImageDimensions(dataSrc, 320)).to.equal('http://example.com/img-2x/A.jpg');
+            expect(
+                imgr.changeImageSrcToUseNewImageDimensions(dataSrc, 320)
+            ).to.equal('http://example.com/img-2x/A.jpg');
         });
     });
 
@@ -193,7 +203,10 @@ describe('Imager.js HTML data-* API', function () {
             expect(imgr.gif).to.have.property('alt', '');
 
             imgr.ready(function () {
-                expect(imgr.divs[1]).to.have.property('alt', 'Responsive Image alternative');
+                expect(imgr.divs[1]).to.have.property(
+                    'alt',
+                    'Responsive Image alternative'
+                );
 
                 done();
             });
@@ -206,8 +219,14 @@ describe('Imager.js HTML data-* API', function () {
             expect(imgr.gif).to.have.property('alt', '');
 
             imgr.ready(function () {
-                expect(imgr.divs[1]).to.have.property('alt', 'Responsive Image alternative');
-                expect(imgr.divs[2]).to.have.property('alt', 'Placeholder image alternative');
+                expect(imgr.divs[1]).to.have.property(
+                    'alt',
+                    'Responsive Image alternative'
+                );
+                expect(imgr.divs[2]).to.have.property(
+                    'alt',
+                    'Placeholder image alternative'
+                );
 
                 done();
             });
@@ -244,7 +263,31 @@ describe('Imager.js HTML data-* API', function () {
             fixtures = loadFixtures('data-class');
             var imgr = new Imager('#main .delayed-image-load');
 
-            expect(imgr.divs[1]).to.have.property('className', 'first-class second-class ' + imgr.className);
+            expect(imgr.divs[1]).to.have.property(
+                'className',
+                'first-class second-class ' + imgr.className
+            );
+        });
+    });
+
+    describe('handling wepb fileformat in data-src', function () {
+        it('should replace webp sources by the computed fallback', function (done) {
+            fixtures = loadFixtures('data-src-webp');
+            var imgr = new Imager({availableWidths: [640, 320]});
+
+            imgr.ready(function () {
+                var src = applyEach(imgr.divs, function (el) {
+                    return el.getAttribute('src');
+                });
+
+                expect(src).to.eql([
+                    'base/test/fixtures/webp/C-640.jpg',
+                    'base/test/fixtures/webp/B-640.jpg',
+                    'base/test/fixtures/webp-320/fillmurray.jpg'
+                ]);
+
+                done();
+            });
         });
     });
 });
